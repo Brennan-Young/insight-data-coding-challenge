@@ -16,8 +16,8 @@ def readBatch(filename):
             adj.append([int(l[2]),int(l[1])])
             ''' 
             If id x pays id y, add both the pair (x,y) and the pair (y,x)
-            to an adjacency list.  This is not explicitly needed, but will be 
-            useful.  See top level README.md for details.
+            to an adjacency list.  This is not explicitly needed, but is useful 
+            for representing data in an adjacency list or matrix.
             ''' 
             
     return adj
