@@ -1,6 +1,12 @@
-from timeit import default_timer as timer
+import sys
+import copy
 
 def readBatch(filename):
+    '''
+    Reads a file line by line, extracting the useful information (for us, just 
+    the payment ids) and placing these into a list.  Holds only one line in 
+    memory at a time.
+    '''
     adj = []
     with open(filename, "rb") as f:
         next(f) # skip the header
@@ -11,12 +17,19 @@ def readBatch(filename):
             ''' 
             If id x pays id y, add both the pair (x,y) and the pair (y,x)
             to an adjacency list.  This is not explicitly needed, but will be 
-            useful later on.
+            useful.  See top level README.md for details.
             ''' 
             
     return adj
     
 def sortPayments(adj):
+    '''
+    Restructures the list of connections, originally formatted a list of ordered
+    pairs (lists), into a list of lists similar to MATLAB's sparse matrix 
+    representation.  Each list corresponds to a user ID.  Within each list are
+    IDs of users that the given user has a connection with (either as payer or
+    payee).  
+    '''
     adj.sort(key=lambda x: x[0]) # sort adjacency list by first element
     numIDs = adj[-1][0]
     adjList = [[] for x in xrange(numIDs)]
@@ -25,8 +38,12 @@ def sortPayments(adj):
     return adjList
     
 def readStream(iFile,oFile,adjList,friendDepth = 1):
+    '''
+    Reads a stream input and writes to a file whether each payment in the stream
+    is trusted or unverified.  Permits arbitrary "depth" of 
+    '''
     with open(iFile, 'rb') as f, open(oFile, 'w') as g:
-        next(f)
+        next(f) #skip header
         for line in f:
             l = [s.strip() for s in line.split(',')]
             payer = int(l[1])
@@ -37,7 +54,6 @@ def readStream(iFile,oFile,adjList,friendDepth = 1):
             unverified, as they have no transactions.  
             '''
             if payer <= len(adjList):
-                #if payee in adjList[payer-1]:
                 if inNetwork(adjList,payer,payee,friendDepth):
                     g.write('trusted\n')
                 else:
@@ -55,16 +71,10 @@ def inNetwork(adjList,payer,payee,friendDepth):
     between the payer and payee.  If not, we search recursively through the 
     payer's connections until a link to the payee is found or the maximum
     depth is reached.
+    
+    Remark: this is a breadth-first approach to looking for a connection.
     '''
-    # if friendDepth == 1:
-    #     if payee in adjList[payer-1]:
-    #         return True
-    #     else:
-    #         return False
-    # else:
-    #     #for p in adjList[payer-1]:
-    #     return any(inNetwork(adjList,p,payee,friendDepth - 1) for p in adjList[payer-1])
-    if payee in adjList[payer-1]:
+    if payee in adjList[payer-1]: # "early stopping"
         return True
     else:
         if friendDepth > 1:
@@ -78,10 +88,14 @@ def inNetwork(adjList,payer,payee,friendDepth):
             return False
             
 def graphAdd(adjList,payer,payee):
-    if payer <= len(adjList) and payee <= len(adjList):
+    '''
+    Upon seeing a transaction, make the two users involved connected.  
+    '''
+    if payer <= len(adjList) and payee <= len(adjList): 
         adjList[payer-1].append(payee)
         adjList[payee-1].append(payer)
-    else:
+    else: # happens when one of the user IDs is larger than the largest ID in 
+    # the current adjacency matrix.  In such a case, new rows need to be added.
         p = max(payer,payee)
         adjList.extend([[]]*(p-len(adjList)))
         adjList[payer-1].append(payee)
@@ -89,25 +103,18 @@ def graphAdd(adjList,payer,payee):
     return
     
 
-def main():
-    start = timer()
-    x = readBatch('../insight_testsuite/tests/my_tests/bp1.csv')
-    end = timer()
-    print(end-start)
-    start = timer()
+def main(argv):
+    x = readBatch(argv[0])
     adjList = sortPayments(x)
-    end = timer()
-    print(end-start)
-    start = timer()
-    readStream('../insight_testsuite/tests/my_tests/sp1.csv','./otest.txt',adjList,3)
-    end = timer()
-    print(end-start)
-    #print(adjList)
-    print(len(x))
-    print(len(adjList))
-    print(adjList)
+    # deep copies of this list
+    l2 = copy.deepcopy(adjList)
+    l3 = copy.deepcopy(adjList)
+    
+    readStream(argv[1],argv[2],adjList,1)
+    readStream(argv[1],argv[3],l2,2)
+    readStream(argv[1],argv[4],l3,4)
     return
     
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
