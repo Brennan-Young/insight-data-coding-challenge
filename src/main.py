@@ -97,7 +97,8 @@ def graphAdd(adjList,payer,payee):
     else: # happens when one of the user IDs is larger than the largest ID in 
     # the current adjacency matrix.  In such a case, new rows need to be added.
         p = max(payer,payee)
-        adjList.extend([[]]*(p-len(adjList)))
+        # adjList.extend([[]]*(p-len(adjList)))
+        adjList.extend([[] for i in range(p-len(adjList))])
         adjList[payer-1].append(payee)
         adjList[payee-1].append(payer)
     return
